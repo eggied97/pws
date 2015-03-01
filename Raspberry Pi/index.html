@@ -1,0 +1,263 @@
+<html>
+
+	<head>
+		<title>PWS Control panel</title>
+
+		<script src="/socket.io/socket.io.js"></script>
+	 	<script src="http://www.flotcharts.org/flot/jquery.js"></script>	
+	 	<script src="http://smoothiecharts.org/smoothie.js"></script>
+
+		<script type="text/javascript">
+	    	$(function() {
+	    		var socket = io();
+
+	    		var i = 0;
+
+				var seriesOptions = [{ strokeStyle: 'rgba(255, 0, 0, 1)', fillStyle: 'rgba(255, 0, 0, 0.1)', lineWidth: 3 }];
+
+				var dataSet = [new TimeSeries()];
+				var now = new Date().getTime();
+
+				var timeline = new SmoothieChart({ fps: 60, 
+					millisPerPixel: 20, 
+					grid: { strokeStyle: '#555555', lineWidth: 1, millisPerLine: 100, verticalSections: 20},
+					yRangeFunction:myYRangeFunction});
+				
+				timeline.addTimeSeries(dataSet[0], seriesOptions[0]);
+
+				timeline.streamTo(document.getElementById('test'), 80);			
+
+
+				function myYRangeFunction(range) {
+				  // TODO implement your calculation using range.min and range.max
+				  var min = -20;
+				  var max = 20;
+				  return {min: min, max: max};
+				}
+
+			    socket.on('stat', function (datal) {
+				    //var series = { label:"stat" , data:[ Date.now(), data.a]};
+				    $("#output").text(datal.o);
+				    $("#integral").text(datal.i);
+				    $("#prop").text(datal.p);
+				    $("#hoek").text(datal.a);
+				    dataSet[0].append(new Date().getTime() , parseFloat(datal.a));
+				});
+
+		    	$('form#values').submit(function(){
+		    		//update values
+		    		var mTau = $('#tau').val();
+					var mKp = $('#kp').val();
+
+					mTau = mTau * 100;
+					mKp = mKp * 100;
+
+					var msg = {tau:mTau, kp:mKp};
+
+		        	socket.emit('updateTauKp', msg);
+
+		        	return false;
+		      	});
+
+		      	$('form#hoekform').submit(function(){
+		    		//update values
+		    		var mHoek = $('#hoek').val();
+					
+
+					mHoek = mHoek * 10;
+
+					var msg = {hoek:mHoek};
+
+		        	socket.emit('hoek', msg);
+
+		        	return false;
+		      	});
+
+		      	$('form#start').submit(function(){
+		      		var mTau = $('#tau').val();
+					var mKp = $('#kp').val();
+					var mStartCode = $('#startButton').attr("value");
+
+					if(mStartCode == "0"){
+						$("#startButton span").text("Stop");
+						$('#startButton').attr("value", "1");
+						mStartCode = 1;					
+					}else if(mStartCode == "1"){
+						$("#startButton span").text("Start");
+						$('#startButton').attr("value", "0");
+						mStartCode = 0;	
+					}
+
+
+					mTau = mTau * 100;
+					mKp = mKp * 100;
+
+					var msg = {startCode:mStartCode, tau:mTau, kp:mKp};
+
+		        	socket.emit('start', msg);
+		        	return false;
+		      	});
+
+		      	$('form#move_vooruit').submit(function(){
+		      		var setpoint = 1;
+		      		setpoint = setpoint * 10;
+
+					var msg = {deltaY:setpoint};
+
+		        	socket.emit('setpoint', msg);
+		        	return false;
+		      	});
+
+		      	$('form#move_stop').submit(function(){	      		
+	      		var setpoint = 0;
+		      		setpoint = setpoint * 10;
+
+					var msg = {deltaY:setpoint};
+
+		        	socket.emit('setpoint', msg);
+		        	return false;
+		      	});
+
+		      	$('form#move_achteruit').submit(function(){	      		
+	      			var setpoint = -1;
+		      		setpoint = setpoint * 10;
+
+					var msg = {deltaY:setpoint};
+
+		        	socket.emit('setpoint', msg);
+		        	return false;
+		      	});
+
+
+		      	//mode select
+		      	$('form#mpu_top').submit(function(){	      		
+					var msg = {mode:1};
+
+		        	socket.emit('mode', msg);
+		        	return false;
+		      	});
+
+		      	$('form#acc_top').submit(function(){	      		
+					var msg = {mode:2};
+
+		        	socket.emit('mode', msg);
+		        	return false;
+		      	});
+
+				$('form#mpu_bot').submit(function(){	      		
+					var msg = {mode:3};
+
+		        	socket.emit('mode', msg);
+		        	return false;
+		      	});
+
+		      	$('form#acc_bot').submit(function(){	      		
+					var msg = {mode:4};
+
+		        	socket.emit('mode', msg);
+		        	return false;
+		      	});
+
+		      });
+    	</script>
+
+	</head>
+
+	<body>
+
+		<form id="values" action="">
+     		<label> tau : </label>
+     		<input id="tau"/>
+     		<label> kP : </label>
+     		<input id="kp"/>
+     		<button>update values</button>
+    	</form>
+
+
+
+    	<form id="start" action="">
+     		<button id="startButton" value="0">
+     			<span class="ui-button-text">Start</span>
+     		</button>
+    	</form>
+
+    	<form id="hoekform" action="">
+     		<label> gecalibreerde hoek : </label>
+     		<input id="hoek"/>
+     		<button>update hoek</button>
+    	</form>
+
+		<div style="overflow:hidden" >
+			<form id="move_vooruit" action="" style="float: left">
+		    	<button id="vooruit_btn" value="0">
+		    		<span class="ui-button-text">vooruit</span>
+		    	</button>
+			</form>
+
+			<form id="move_stop" action="" style="float: left">
+		    	<button id="stop_btn" value="0">
+		    		<span class="ui-button-text">stil</span>
+		    	</button>
+			</form>
+
+			<form id="move_achteruit" action="" style="float: left">
+		    	<button id="vooruit_btn" value="0">
+		    		<span class="ui-button-text">achteruit</span>
+		    	</button>
+			</form>
+		</div>
+
+		<div style="overflow:hidden" >
+			<span class="ui-label-text">Mode select : </span>
+
+			<form id="mpu_top" action="" style="float: left">
+		    	<button id="mpu_top" value="0">
+		    		<span class="ui-button-text">mpu opwaarts</span>
+		    	</button>
+			</form>
+
+			<form id="acc_top" action="" style="float: left">
+		    	<button id="acc_top" value="0">
+		    		<span class="ui-button-text">versnellingssensor opwaarts</span>
+		    	</button>
+			</form>
+
+			<form id="mpu_bot" action="" style="float: left">
+		    	<button id="mpu_bot" value="0">
+		    		<span class="ui-button-text">mpu neerwaarts</span>
+		    	</button>
+			</form>
+
+			<form id="acc_bot" action="" style="float: left">
+		    	<button id="acc_bot" value="0">
+		    		<span class="ui-button-text">versnellingssensor neerwaarts</span>
+		    	</button>
+			</form>
+		</div>
+
+		<div id="stats">
+			<div style="overflow:hidden" >
+				<span id="txt_angle" style="float: left">hoek :</span><span id="hoek" style="float: left"></span>
+				<canvas id="test" width="500" height="100" style="float: left"></canvas>
+			</div>
+			<div style="overflow:hidden" >
+				<span id="txt_output" style="float: left">output :</span>
+				<span id="output" style="float: left">output :</span>
+			</div>
+
+			<div style="overflow:hidden" >
+				<span id="txt_i" style="float: left">Integral :</span>
+				<span id="integral" style="float: left">Integral :</span>
+			</div>
+
+			<div style="overflow:hidden" >
+				<span id="txt_prop" style="float: left">Prop :</span>
+				<span id="prop" style="float: left">Prop :</span>
+			</div>
+		</div>
+    	
+
+
+	</body>
+
+</html>
